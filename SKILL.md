@@ -213,7 +213,9 @@ For ALL query types:
 - **USE THE USER'S EXACT TERMINOLOGY** - don't substitute or add tech names based on your knowledge
 - EXCLUDE reddit.com, x.com, twitter.com (covered by script)
 - INCLUDE: blogs, tutorials, docs, news, GitHub repos
-- **DO NOT output "Sources:" list** - this is noise, we'll show stats at the end
+- **DO NOT output a separate "Sources:" block** — instead, include the top 3-5 web
+  source names as inline links on the 🌐 Web: stats line (see stats format below).
+  The WebSearch tool requires citation; satisfy it there, not as a trailing section.
 
 **Options** (passed through from user's command):
 - `--days=N` → Look back N days instead of 30 (e.g., `--days=7` for weekly roundup)
@@ -393,10 +395,12 @@ KEY PATTERNS from the research:
 ├─ 🔴 YouTube: {N} videos │ {N} views │ {N} with transcripts
 ├─ 🟡 HN: {N} stories │ {N} points │ {N} comments
 ├─ 📊 Polymarket: {N} markets │ {short summary of up to 5 most relevant market odds, e.g. "Championship: 12%, #1 Seed: 28%, Big 12: 64%, vs Kansas: 71%"}
-├─ 🌐 Web: {N} pages (supplementary)
+├─ 🌐 Web: {N} pages — [Source Name](url), [Source Name](url), [Source Name](url)
 └─ 🗣️ Top voices: @{handle1} ({N} likes), @{handle2} │ r/{sub1}, r/{sub2}
 ---
 ```
+
+**WebSearch citation note:** The WebSearch tool requires source citation. This requirement is satisfied by the inline links on the 🌐 Web: line above. Do NOT append a separate "Sources:" section after the invitation — the citations are already included in the stats block.
 
 **CRITICAL: Omit any source line that returned 0 results.** Do NOT show "0 threads", "0 stories", "0 markets", or "(no results this cycle)". If a source found nothing, DELETE that line entirely - don't include it at all.
 NEVER use plain text dashes (-) or pipe (|). ALWAYS use ├─ └─ │ and the emoji.
