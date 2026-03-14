@@ -158,5 +158,24 @@ class TestDepthConfig(unittest.TestCase):
         )
 
 
+class TestPostRelevance(unittest.TestCase):
+    def test_body_cannot_rescue_weak_title_too_far(self):
+        score = reddit._compute_post_relevance(
+            "anthropic odds",
+            "President Trump orders agencies to stop using Anthropic technology",
+            "Long body text eventually mentions odds and other tangential details.",
+        )
+        self.assertLess(score, 0.7)
+        self.assertGreaterEqual(score, 0.5)
+
+    def test_exact_title_match_stays_high(self):
+        score = reddit._compute_post_relevance(
+            "claude code tips",
+            "Claude Code tips for faster workflows",
+            "",
+        )
+        self.assertGreater(score, 0.7)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -202,8 +202,9 @@ def _normalize_post(post: Dict[str, Any], idx: int, source_label: str = "global"
     title = str(post.get("title", "")).strip()
     selftext = str(post.get("selftext", ""))
 
-    # Compute relevance from query-to-content overlap (or default 0.7)
-    relevance = token_overlap_relevance(query, title + " " + selftext) if query else 0.7
+    # Score the title first, then let the body provide limited support.
+    # This keeps long selftexts from overpowering the visible topic signal.
+    relevance = _compute_post_relevance(query, title, selftext) if query else 0.7
 
     return {
         "id": f"R{idx}",
@@ -221,6 +222,22 @@ def _normalize_post(post: Dict[str, Any], idx: int, source_label: str = "global"
         "why_relevant": f"Reddit {source_label} search",
         "selftext": str(post.get("selftext", ""))[:500],
     }
+
+
+def _compute_post_relevance(query: str, title: str, selftext: str) -> float:
+    """Compute Reddit relevance with title-first weighting.
+
+    Title should carry most of the weight because it is the visible summary the
+    user sees. Selftext can lift a marginal match, but it should not rescue a
+    weak or ambiguous title into the top ranks.
+    """
+    title_score = token_overlap_relevance(query, title)
+    if not selftext.strip():
+        return title_score
+
+    body_score = token_overlap_relevance(query, selftext)
+    support_score = max(title_score, body_score)
+    return round(0.75 * title_score + 0.25 * support_score, 2)
 
 
 def _global_search(

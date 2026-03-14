@@ -78,6 +78,12 @@ class TestExpandQueries(unittest.TestCase):
         self.assertIn("new", queries)
         self.assertIn("idea", queries)
 
+    def test_low_signal_words_not_expanded_standalone(self):
+        queries = polymarket._expand_queries("anthropic odds")
+        self.assertIn("anthropic odds", queries)
+        self.assertIn("anthropic", queries)
+        self.assertNotIn("odds", queries)
+
 
 class TestExtractDomainQueries(unittest.TestCase):
     def _make_tag(self, label):
@@ -193,6 +199,37 @@ class TestFormatPriceMovement(unittest.TestCase):
         }
         result = polymarket._format_price_movement(market)
         self.assertIsNone(result)
+
+
+class TestTextSimilarity(unittest.TestCase):
+    def test_short_binary_outcome_does_not_match_substring(self):
+        score = polymarket._compute_text_similarity(
+            "nano banana pro prompting",
+            "NATO x Russia military clash by...?",
+            ["No", "Yes"],
+        )
+        self.assertLess(score, 0.3)
+
+    def test_outcome_only_match_is_capped_for_non_prediction_queries(self):
+        score = polymarket._compute_text_similarity(
+            "kanye west",
+            "Top Spotify artist in March?",
+            ["Kanye West", "Taylor Swift"],
+        )
+        self.assertLess(score, 0.3)
+
+    def test_direct_title_match_beats_outcome_only_prediction_market(self):
+        direct = polymarket._compute_text_similarity(
+            "anthropic odds",
+            "Will Anthropic or OpenAI IPO first?",
+            [],
+        )
+        generic = polymarket._compute_text_similarity(
+            "anthropic odds",
+            "Which company will have the best AI model for coding on March 31",
+            ["Anthropic", "OpenAI", "Google"],
+        )
+        self.assertGreater(direct, generic)
 
 
 class TestParseOutcomePrices(unittest.TestCase):
@@ -590,27 +627,27 @@ class TestTextSimilarity(unittest.TestCase):
         self.assertEqual(score, 1.0)
 
     def test_outcome_substring_match(self):
-        """Topic 'Arizona' should match outcome 'Arizona' even when title has no overlap."""
+        """Prediction queries can still use outcome-only entity matches."""
         score = polymarket._compute_text_similarity(
-            "Arizona",
+            "Arizona odds",
             "Who will be the #1 overall seed?",
             outcomes=["Duke", "Arizona", "Houston"],
         )
-        self.assertEqual(score, 1.0)
+        self.assertEqual(score, 0.55)
 
     def test_outcome_bidirectional_match(self):
-        """Topic 'Arizona Basketball' should match outcome 'Arizona' (outcome in core)."""
+        """Longer prediction topics keep the same moderated outcome-only cap."""
         score = polymarket._compute_text_similarity(
-            "Arizona Basketball",
+            "Arizona Basketball odds",
             "Who will be the #1 overall seed?",
             outcomes=["Duke", "Arizona", "Houston"],
         )
-        self.assertEqual(score, 0.88)
+        self.assertEqual(score, 0.55)
 
     def test_outcome_token_overlap(self):
-        """Partial token overlap with outcome gets a moderate score."""
+        """Outcome-only prediction matches stay moderate, not dominant."""
         score = polymarket._compute_text_similarity(
-            "Iran War",
+            "Iran War odds",
             "Unrelated geopolitics title",
             outcomes=["War continues", "Peace deal"],
         )
@@ -630,11 +667,11 @@ class TestTextSimilarity(unittest.TestCase):
         """Outcomes with price <= 1% should be filtered by the caller, not this function."""
         # This function doesn't filter - it trusts the caller to pass only relevant outcomes
         score = polymarket._compute_text_similarity(
-            "Arizona",
+            "Arizona odds",
             "Unrelated title",
             outcomes=["Arizona"],
         )
-        self.assertEqual(score, 1.0)
+        self.assertEqual(score, 0.55)
 
     def test_generic_only_odds_match_stays_below_threshold(self):
         score = polymarket._compute_text_similarity(

@@ -13,7 +13,8 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus, urlencode
 
 from . import http
-from .relevance import token_overlap_relevance
+from .query_type import detect_query_type
+from .relevance import LOW_SIGNAL_QUERY_TOKENS, token_overlap_relevance
 
 GAMMA_SEARCH_URL = "https://gamma-api.polymarket.com/public-search"
 
@@ -74,7 +75,7 @@ def _expand_queries(topic: str) -> List[str]:
     words = core.split()
     if len(words) >= 2:
         for word in words:
-            if len(word) > 1:  # skip single-char words
+            if len(word) > 1 and word.lower() not in LOW_SIGNAL_QUERY_TOKENS:
                 queries.append(word)
 
     # Add the full topic if different from core
@@ -327,17 +328,45 @@ def _compute_text_similarity(topic: str, title: str, outcomes: List[str] = None)
     if core in title_lower:
         return 1.0
 
-    best_score = token_overlap_relevance(core, title)
+    query_type = detect_query_type(topic)
+    title_score = token_overlap_relevance(core, title)
+    best_score = title_score
 
     if outcomes:
         for outcome_name in outcomes:
             outcome_lower = outcome_name.lower()
             outcome_score = token_overlap_relevance(core, outcome_name)
-            if core in outcome_lower or outcome_lower in core:
+            if _strong_phrase_match(core, outcome_lower):
                 outcome_score = max(outcome_score, 0.92 if len(outcome_lower.split()) >= 2 else 0.88)
+            if title_score < 0.3:
+                outcome_cap = 0.55 if query_type == "prediction" else 0.24
+                outcome_score = min(outcome_cap, outcome_score)
+            else:
+                outcome_score = max(title_score, 0.75 * title_score + 0.25 * outcome_score)
             best_score = max(best_score, outcome_score)
 
     return round(best_score, 2)
+
+
+def _strong_phrase_match(core: str, candidate: str) -> bool:
+    """Require real token matches, not accidental short substrings.
+
+    This prevents binary outcomes like "No" from matching "nano" or similar
+    short-string accidents.
+    """
+    candidate = " ".join(re.sub(r"[^\w\s]", " ", candidate.lower()).split())
+    core = " ".join(re.sub(r"[^\w\s]", " ", core.lower()).split())
+    if not candidate or not core:
+        return False
+
+    candidate_tokens = candidate.split()
+    core_tokens = set(core.split())
+
+    if len(candidate_tokens) >= 2:
+        return candidate in core or core in candidate
+
+    token = candidate_tokens[0]
+    return len(token) > 2 and token in core_tokens
 
 
 def _safe_float(val, default=0.0) -> float:
