@@ -213,7 +213,10 @@ def _run_bird_search(query: str, count: int, timeout: int) -> Dict[str, Any]:
         if not output:
             return {"items": []}
 
-        return json.loads(output)
+        parsed = json.loads(output)
+        if isinstance(parsed, list):
+            return {"items": parsed}
+        return parsed
 
     except json.JSONDecodeError as e:
         return {"error": f"Invalid JSON response: {e}", "items": []}
