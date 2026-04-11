@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError, as_completed
 from datetime import datetime, timezone
 from shutil import which
 from typing import Any
@@ -44,6 +45,9 @@ from . import (
 )
 from .cluster import cluster_candidates
 from .fusion import weighted_rrf
+
+FETCH_STREAM_TIMEOUT_SEC = 60
+_pipeline_log = logging.getLogger("last30days.pipeline")
 
 DEPTH_SETTINGS = {
     "quick": {"per_stream_limit": 6, "pool_limit": 15, "rerank_limit": 12},
@@ -198,6 +202,14 @@ def run(
     if not available:
         raise RuntimeError("No sources are available for this run.")
 
+    _pipeline_log.info(
+        "[pipeline] run start topic=%r depth=%s lookback_days=%s available=%s",
+        topic,
+        depth,
+        lookback_days,
+        available,
+    )
+
     if external_plan:
         # External plan provided (e.g., from Claude Code via --plan flag).
         # Parse it through the same sanitizer to validate structure.
@@ -223,6 +235,38 @@ def run(
         for sq in plan.subqueries:
             if "grounding" not in sq.sources:
                 sq.sources.append("grounding")
+
+    # Hard cap subquery sources to the caller's requested set (planner can still emit extras).
+    # SubQuery is frozen — must rebuild instances instead of mutating sq.sources.
+    if requested_sources:
+        allow = set(requested_sources)
+        rebuilt: list[schema.SubQuery] = []
+        for sq in plan.subqueries:
+            filtered = [s for s in sq.sources if s in allow]
+            if filtered:
+                rebuilt.append(
+                    schema.SubQuery(
+                        label=sq.label,
+                        search_query=sq.search_query,
+                        ranking_query=sq.ranking_query,
+                        sources=filtered,
+                        weight=sq.weight,
+                    )
+                )
+        if rebuilt:
+            plan.subqueries = rebuilt
+        else:
+            fused = [s for s in available if s in allow]
+            if fused:
+                plan.subqueries = [
+                    schema.SubQuery(
+                        label="fallback",
+                        search_query=topic,
+                        ranking_query=f"What recent evidence matters for {topic}?",
+                        sources=fused,
+                        weight=1.0,
+                    )
+                ]
 
     bundle = schema.RetrievalBundle(artifacts={"grounding": []})
 
@@ -301,7 +345,7 @@ def run(
                     source_fetch_count[source] = current + 1
                 futures[
                     executor.submit(
-                        _retrieve_stream,
+                        _retrieve_stream_with_timeout,
                         topic=topic,
                         subquery=subquery,
                         source=source,
@@ -336,7 +380,7 @@ def run(
                 if _is_transient_error(exc):
                     time.sleep(3)
                     try:
-                        raw_items, artifact = _retrieve_stream(
+                        raw_items, artifact = _retrieve_stream_with_timeout(
                             topic=topic, subquery=subquery, source=source,
                             config=config, depth=depth, date_range=(from_date, to_date),
                             runtime=runtime, mock=mock,
@@ -725,20 +769,34 @@ def _retry_thin_sources(
     )
 
     def _retry_one_source(source: str) -> tuple[str, list[schema.SourceItem]]:
-        raw_items, _artifact = _retrieve_stream(
-            topic=topic,
-            subquery=retry_subquery,
-            source=source,
-            config=config,
-            depth=depth,
-            date_range=date_range,
-            runtime=runtime,
-            mock=mock,
-            rate_limited_sources=rate_limited_sources,
-            rate_limit_lock=rate_limit_lock,
-            web_backend=web_backend,
-            raw_topic=topic,
-        )
+        t0 = time.perf_counter()
+        _pipeline_log.info("[%s] start (retry)", source)
+        with ThreadPoolExecutor(max_workers=1) as inner:
+            fut = inner.submit(
+                _retrieve_stream,
+                topic=topic,
+                subquery=retry_subquery,
+                source=source,
+                config=config,
+                depth=depth,
+                date_range=date_range,
+                runtime=runtime,
+                mock=mock,
+                rate_limited_sources=rate_limited_sources,
+                rate_limit_lock=rate_limit_lock,
+                web_backend=web_backend,
+                raw_topic=topic,
+            )
+            try:
+                raw_items, _artifact = fut.result(timeout=FETCH_STREAM_TIMEOUT_SEC)
+            except FuturesTimeoutError:
+                _pipeline_log.warning(
+                    "[%s] done (retry, %.2fs) — timeout %ss",
+                    source,
+                    time.perf_counter() - t0,
+                    FETCH_STREAM_TIMEOUT_SEC,
+                )
+                return source, []
         normalized = _normalize_score_dedupe(
             source,
             raw_items,
@@ -747,11 +805,11 @@ def _retry_thin_sources(
             freshness_mode=plan.freshness_mode,
             ranking_query=retry_subquery.ranking_query,
         )
+        _pipeline_log.info("[%s] done (retry, %.2fs)", source, time.perf_counter() - t0)
         return source, normalized[:settings["per_stream_limit"]]
 
     retryable = [s for s in thin_sources if s not in rate_limited_sources]
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
     with ThreadPoolExecutor(max_workers=min(4, len(retryable) or 1)) as executor:
         futures = {executor.submit(_retry_one_source, s): s for s in retryable}
         for future in as_completed(futures):
@@ -948,6 +1006,29 @@ def _retrieve_stream(
         )
         return xquik.parse_xquik_response(result), {}
     raise RuntimeError(f"Unsupported source: {source}")
+
+
+def _retrieve_stream_with_timeout(**kwargs: Any) -> tuple[list[dict], dict]:
+    """Run _retrieve_stream in a nested worker with a hard time limit (hung work may continue in background)."""
+    source = str(kwargs.get("source", "?"))
+    t0 = time.perf_counter()
+    _pipeline_log.info("[%s] start", source)
+    with ThreadPoolExecutor(max_workers=1) as inner:
+        fut = inner.submit(_retrieve_stream, **kwargs)
+        try:
+            raw_items, artifact = fut.result(timeout=FETCH_STREAM_TIMEOUT_SEC)
+        except FuturesTimeoutError:
+            elapsed = time.perf_counter() - t0
+            _pipeline_log.warning(
+                "[%s] done (%.2fs) — exceeded %ss timeout, skipping",
+                source,
+                elapsed,
+                FETCH_STREAM_TIMEOUT_SEC,
+            )
+            raise RuntimeError(f"fetch timeout ({FETCH_STREAM_TIMEOUT_SEC}s)") from None
+    elapsed = time.perf_counter() - t0
+    _pipeline_log.info("[%s] done (%.2fs)", source, elapsed)
+    return raw_items, artifact
 
 
 def _google_key(config: dict[str, Any]) -> str | None:
