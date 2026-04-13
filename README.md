@@ -41,49 +41,11 @@
 
 ![AI News Page](./images/news-page.png)
 
+项目网站：https://www.mengxing-ai.it.com/ai-news
+
 ##🏠架构
 ## ⚙️ 系统架构与数据流转
-09:30 AM                              10:42 AM
-   │                                     │
-   ▼                                     ▼
-┌─────────────────┐                  ┌──────────────────┐
-│  Make.com 定时   │                  │  Coze 工作流      │
-│  HTTP POST 触发  │                  │  (5 节点并发)     │
-└────────┬────────┘                  └────────┬─────────┘
-│                                    │
-▼                                    ▼
-┌─────────────────┐                  ┌──────────────────┐
-│  FastAPI 微服务  │                  │ GoogleWebSearch  │
-│  (Render 部署)   │                  │ YouTube / RSS    │
-│  ├ HN 抓取       │                  │  ├ X KOL 通道    │
-│  ├ Polymarket   │                  │  ├ 模型发布通道   │
-│  └ YouTube 字幕 │                  │  ├ 中文媒体通道   │
-└────────┬────────┘                  │  ├ YouTube 通道  │
-│                           │  └ RSS 38氪通道  │
-│                           └────────┬─────────┘
-│                                    │
-└──────────┬─────────────────────────┘
-│
-▼
-┌────────────────────┐
-│  DeepSeek / GPT-4o │
-│  双语清洗 + 摘要    │
-│  + 去重 + 打分      │
-└──────────┬─────────┘
-│
-▼
-┌────────────────────┐
-│  Notion Database   │
-│  (Headless CMS)    │
-│  + TimeRange 分级  │
-└──────────┬─────────┘
-│
-▼
-┌────────────────────┐
-│  Next.js 前端      │
-│  (Vercel)          │
-│  三级时间切片渲染   │
-└────────────────────┘
+![系统架构](./images/image.png)
 
 **数据流转四阶段**：
 
@@ -160,28 +122,6 @@ Make.com 端配置：
 
 健康检查，返回 `{"status": "ok"}`。
 
-## 🏗️ 架构
-Make.com (cron 09:30)
-│
-▼
-/api/news  ──┬──► HN 抓取 (60s timeout)
-├──► Polymarket 抓取 (60s timeout)
-└──► YouTube + yt-dlp 字幕 (60s timeout)
-│
-▼
-交叉验证 + 打分排序 (re-rank)
-│
-▼
-DeepSeek 批处理 (5 并发, 每条 25s)
-│
-▼
-返回 JSON Array
-│
-▼
-Make.com Iterator
-│
-▼
-Notion Database
 
 ## 🔧 关键设计决策
 
@@ -199,13 +139,6 @@ $5 才能解锁。本项目的 X 数据抓取改由 Coze 引擎通过 GoogleWebS
 尝试原地赋值会抛 FrozenInstanceError，且 YouTube 的 yt-dlp 偶尔会卡死 
 fork 子进程。60 秒硬超时 + 独立线程执行确保单源故障不阻塞主管线。
 
-## 🧪 开发记录
-
-- **2026-04-12**: 首次上线，改造 last30days-skill 为 FastAPI 微服务
-- **2026-04-12**: 切换 LLM Provider 为 DeepSeek，解决网络访问 Gemini 
-  的超时问题
-- **2026-04-12**: 修复 SubQuery frozen dataclass bug，增加每源 60s 超时保护
-- **2026-04-12**: 对接 Make.com + Notion 全链路贯通
 
 ## 🤝 致谢
 
