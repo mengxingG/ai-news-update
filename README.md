@@ -1,53 +1,218 @@
-# AI News Radar API ( mengxing-ai.it.com 专属后端 )
+# AI News Radar · FastAPI Engine
 
-基于 `last30days-skill` 核心打分引擎二次开发的独立微服务。
-作为 [mengxing-ai.it.com](https://www.mengxing-ai.it.com/ai-news) 的后端数据抓取节点，配合 Make.com + Notion 自动化工作流运行。
+> 一个为个人网站 [mengxing-ai.it.com](https://www.mengxing-ai.it.com) 服务的
+> AI 资讯深度采集微服务。作为「AI News Radar」双引擎架构中的 **Engine A（社区共识引擎）**，
+> 专注于深度挖掘 Hacker News、Polymarket、YouTube 字幕等长尾信号。
 
-## 🚀 核心改造说明
-- **剥离 CLI 交互**：封装为标准 FastAPI 接口，直接返回 JSON 数组。
-- **优雅降级**：跳过需要繁琐授权的 X (Twitter)，专注抓取 Hacker News、Polymarket、Reddit 和 YouTube。
-- **时间维度分层**：支持按天数筛选，完美适配“日更”、“周榜”、“月榜”业务需求。
+[![Deploy](https://img.shields.io/badge/Deploy-Render-46e3b7)](https://render.com)
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-latest-009485)](https://fastapi.tiangolo.com)
 
-## 🛠️ 本地启动指南
+## 🎯 项目定位
 
-1. 安装项目依赖：
-   ```bash
-   uv sync
+本项目是 AI News Radar 的**代码侧引擎**，与部署在 Coze 平台的无代码引擎协同工作：
 
-2. 启动本地 API 服务：
+| | Engine A（本项目） | Engine B（Coze 工作流） |
+|---|---|---|
+| 技术栈 | Python + FastAPI + Render | Coze 可视化工作流 |
+| 数据源 | HN / Polymarket / YouTube 字幕 | X 博主 / 中文媒体 / RSS |
+| 触发时间 | 每天 09:30 AM | 每天 10:42 AM |
+| 优势 | 深度、可迭代、稳定 | 灵活、快速、广覆盖 |
 
-Bash
-uv run uvicorn server:app --reload
+两个引擎写入同一个 Notion 数据库，由 Next.js 前端统一渲染。
 
-3. 服务地址：http://127.0.0.1:8000
+## 🧬 项目来源
 
-📡 API 接口文档
-GET /api/news
-触发多源情报抓取并返回排名最高的高质量内容。
+本项目基于开源项目 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill)
+改造而来。原项目是一个 Claude Skill 设计用于命令行交互，本项目的核心改造包括：
 
-Query Parameters:
+- **微服务化**：用 FastAPI 将 CLI 工具封装为 HTTP 接口，供 Make.com 定时调用
+- **三源精简**：从原本的 8 个数据源精简为 HN / Polymarket / YouTube 三源（X 源因台湾
+  网络访问限制由 Coze 引擎承担）
+- **Gemini → DeepSeek**：因 Google API 在部分地区不可达，切换 LLM 为 DeepSeek（OpenAI 
+  兼容接口）
+- **优雅降级**：每个数据源独立 60 秒超时，单源故障不拖死整条管线
+- **JSON 输出**：返回结构化 `Array<Object>`，字段固定为 
+  `Title / Source / Author / URL / OriginalText / Date`
 
-topic (string, 必填): 搜索关键词，例如 AI Agent, LLM
+## 📰 项目效果
 
-days (integer, 选填, 默认 1): 溯源时间范围。1 代表今明两天，7 代表近一周。
+![AI News Dashboard](./images/news-dashboard.png)
 
-Request Example:
+![AI News Page](./images/news-page.png)
 
-HTTP
-GET /api/news?topic=AI+Agent&days=7
-Response Example:
+##🏠架构
+## ⚙️ 系统架构与数据流转
+09:30 AM                              10:42 AM
+   │                                     │
+   ▼                                     ▼
+┌─────────────────┐                  ┌──────────────────┐
+│  Make.com 定时   │                  │  Coze 工作流      │
+│  HTTP POST 触发  │                  │  (5 节点并发)     │
+└────────┬────────┘                  └────────┬─────────┘
+│                                    │
+▼                                    ▼
+┌─────────────────┐                  ┌──────────────────┐
+│  FastAPI 微服务  │                  │ GoogleWebSearch  │
+│  (Render 部署)   │                  │ YouTube / RSS    │
+│  ├ HN 抓取       │                  │  ├ X KOL 通道    │
+│  ├ Polymarket   │                  │  ├ 模型发布通道   │
+│  └ YouTube 字幕 │                  │  ├ 中文媒体通道   │
+└────────┬────────┘                  │  ├ YouTube 通道  │
+│                           │  └ RSS 38氪通道  │
+│                           └────────┬─────────┘
+│                                    │
+└──────────┬─────────────────────────┘
+│
+▼
+┌────────────────────┐
+│  DeepSeek / GPT-4o │
+│  双语清洗 + 摘要    │
+│  + 去重 + 打分      │
+└──────────┬─────────┘
+│
+▼
+┌────────────────────┐
+│  Notion Database   │
+│  (Headless CMS)    │
+│  + TimeRange 分级  │
+└──────────┬─────────┘
+│
+▼
+┌────────────────────┐
+│  Next.js 前端      │
+│  (Vercel)          │
+│  三级时间切片渲染   │
+└────────────────────┘
 
-JSON
+**数据流转四阶段**：
+
+1. **分布式采集**：异构双引擎在 9:30 与 10:42 错峰唤醒，最大化降低 API 限流概率
+2. **清洗与规范化**：格式化为统一的 JSON Array（Title, Source, Author, URL, 
+   OriginalText, Date, TimeRange）
+3. **中央调度**：Make.com 作为中枢神经，拦截双引擎数据，执行去重逻辑，统一写入 Notion
+4. **前端渲染**：Next.js 个人网站直连 Notion API，实现全自动的"抓取-打分-发布"闭环
+
+
+## 🚀 快速开始
+
+### 本地运行
+
+```bash
+# 1. Clone
+git clone https://github.com/mengxingG/ai-news-update.git
+cd ai-news-update
+
+# 2. 环境
+conda create -n ainews python=3.12
+conda activate ainews
+pip install -e ".[server]"
+
+# 3. 环境变量
+export DEEPSEEK_API_KEY=sk-xxx
+export LLM_PROVIDER=deepseek
+
+# 4. 启动
+python -m uvicorn server:app --host 127.0.0.1 --port 8000
+
+# 5. 测试
+curl "http://127.0.0.1:8000/api/news?topic=AI&days=1"
+```
+
+### Render 部署
+
+本项目已适配 Render Web Service。环境变量设置：
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-xxx
+
+Render 会自动识别 `pyproject.toml` 并构建。
+
+### Make.com 调用
+
+Make.com 端配置：
+- HTTP GET `https://your-service.onrender.com/api/news?topic=AI&days=1`
+- Timeout: 180 秒（LLM 调用较慢）
+- Parse response: ON
+
+## 📡 API 接口
+
+### GET /api/news
+
+**参数**：
+- `topic` (必填)：搜索主题，例 `AI`
+- `days` (可选)：回溯天数，默认 1，范围 1-366
+
+**返回**：
+```json
 [
   {
-    "Title": "AI agent in a robot does exactly what experts warned",
-    "Source": "YouTube",
-    "Author": "InsideAI",
-    "OriginalText": "Highlights: 20 researchers gave the agents access to...",
-    "Date": "2026-04-09",
-    "URL": "[https://www.youtube.com/watch?v=](https://www.youtube.com/watch?v=)..."
+    "Title": "DeepSeek 开源新版 R2 模型",
+    "Source": "Hacker News",
+    "Author": "dang",
+    "URL": "https://news.ycombinator.com/item?id=xxx",
+    "OriginalText": "DeepSeek 今日开源 R2 模型，在数学与代码基准上...",
+    "Date": "2026-04-12"
   }
 ]
+```
 
-☁️ 部署说明
-本项目已配置好完整的 pyproject.toml，可直接通过 Zeabur、Render 或 Railway 等 PaaS 平台一键部署为 Python 服务。启动命令默认使用 Uvicorn。
+### GET /health
+
+健康检查，返回 `{"status": "ok"}`。
+
+## 🏗️ 架构
+Make.com (cron 09:30)
+│
+▼
+/api/news  ──┬──► HN 抓取 (60s timeout)
+├──► Polymarket 抓取 (60s timeout)
+└──► YouTube + yt-dlp 字幕 (60s timeout)
+│
+▼
+交叉验证 + 打分排序 (re-rank)
+│
+▼
+DeepSeek 批处理 (5 并发, 每条 25s)
+│
+▼
+返回 JSON Array
+│
+▼
+Make.com Iterator
+│
+▼
+Notion Database
+
+## 🔧 关键设计决策
+
+### 为什么从 Gemini 切换到 DeepSeek？
+Google API 代理访问稳定性不佳，gRPC 连接经常超时。DeepSeek 提供
+OpenAI 兼容接口 + 原生中文优势 + 极低成本，实测稳定 3 秒内返回。
+
+### 为什么不用 X 官方 API？
+xAI Console 新用户注册不再发放 $25 免费额度，且 data-sharing 需要先充值
+$5 才能解锁。本项目的 X 数据抓取改由 Coze 引擎通过 GoogleWebSearch 
+覆盖。
+
+### 为什么要限制每源 60 秒超时？
+原版项目的 subquery 过滤逻辑在 `@dataclass(frozen=True)` 的 SubQuery 上
+尝试原地赋值会抛 FrozenInstanceError，且 YouTube 的 yt-dlp 偶尔会卡死 
+fork 子进程。60 秒硬超时 + 独立线程执行确保单源故障不阻塞主管线。
+
+## 🧪 开发记录
+
+- **2026-04-12**: 首次上线，改造 last30days-skill 为 FastAPI 微服务
+- **2026-04-12**: 切换 LLM Provider 为 DeepSeek，解决网络访问 Gemini 
+  的超时问题
+- **2026-04-12**: 修复 SubQuery frozen dataclass bug，增加每源 60s 超时保护
+- **2026-04-12**: 对接 Make.com + Notion 全链路贯通
+
+## 🤝 致谢
+
+- [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) — 原始项目
+- [Anthropic Claude Code](https://claude.ai/code) — 协助迁移与调试
+- [Cursor](https://cursor.sh) — IDE 与 Agent
+
+## 📜 License
+
+MIT
