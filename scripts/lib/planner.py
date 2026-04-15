@@ -125,6 +125,8 @@ def _build_prompt(
     requested = ", ".join(requested_sources or ["auto"])
     available = ", ".join(available_sources)
     return f"""
+【强制时效纪律】当前现实系统时间为 2026年4月。你提取的每一条新闻必须严格发生在此刻的过去 24 小时内。如果在文本中发现包含 2026 年之前的历史事件（例如 Andrej Karpathy 刚加盟特斯拉），这是搜索引擎的脏数据，你必须直接丢弃 (DROP)，绝对禁止将其写入最终的 JSON 输出结果中！
+
 You are the query planner for a live last-30-days research pipeline.
 
 Topic: {topic}
@@ -160,7 +162,7 @@ Rules:
 - search_query should be concise and keyword-heavy
 - ranking_query should read like a natural-language question
 - preserve exact proper nouns and entity strings from the topic
-- NEVER include temporal phrases in search_query: no 'last 30 days', 'recent', month names, year numbers
+- NEVER include temporal phrases in search_query: no 'last 24 hours', 'recent', month names, year numbers
 - NEVER include meta-research phrases: no 'news', 'updates', 'public appearances', 'latest developments'
 - search_query should match how content is TITLED on platforms
 - GitHub (Issues/PRs) is best for engineering, developer tools, and open source topics: 'kanye west bully' not 'kanye west album news March 2026'
@@ -356,7 +358,7 @@ def _fallback_plan(
                     schema.SubQuery(
                         label=f"entity-{index}",
                         search_query=entity,
-                        ranking_query=f"What recent evidence from the last 30 days is most relevant to {entity} in the comparison '{topic}'?",
+                        ranking_query=f"What recent evidence from the last 24 hours is most relevant to {entity} in the comparison '{topic}'?",
                         sources=list(source_weights),
                         weight=0.65,
                     )
@@ -376,7 +378,7 @@ def _fallback_plan(
             schema.SubQuery(
                 label="reaction",
                 search_query=f"{base_search} reaction update",
-                ranking_query=f"What new reactions or follow-up reporting from the last 30 days matter for {topic}?",
+                ranking_query=f"What new reactions or follow-up reporting from the last 24 hours matter for {topic}?",
                 sources=[source for source in source_weights if source in {"x", "reddit", "grounding", "hackernews"}] or list(source_weights),
                 weight=0.7,
             )
@@ -474,8 +476,8 @@ def _ranking_query(topic: str, core: str) -> str:
     if topic.strip().endswith("?"):
         return topic.strip()
     if core and core.lower() != topic.lower():
-        return f"What recent evidence from the last 30 days is most relevant to {topic}, especially about {core}?"
-    return f"What recent evidence from the last 30 days is most relevant to {topic}?"
+        return f"What recent evidence from the last 24 hours is most relevant to {topic}, especially about {core}?"
+    return f"What recent evidence from the last 24 hours is most relevant to {topic}?"
 
 
 _TRAILING_CONTEXT = re.compile(

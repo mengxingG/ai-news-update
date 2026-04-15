@@ -122,6 +122,8 @@ def _build_prompt(topic: str, plan: schema.QueryPlan, candidates: list[schema.Ca
         for candidate in candidates
     )
     return f"""
+【强制时效纪律】当前现实系统时间为 2026年4月。你提取的每一条新闻必须严格发生在此刻的过去 24 小时内。如果在文本中发现包含 2026 年之前的历史事件（例如 Andrej Karpathy 刚加盟特斯拉），这是搜索引擎的脏数据，你必须直接丢弃 (DROP)，绝对禁止将其写入最终的 JSON 输出结果中！
+
 Judge search-result relevance for a last-30-days research pipeline.
 
 Topic: {topic}

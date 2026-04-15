@@ -143,7 +143,7 @@ def auto_resolve(topic: str, config: dict) -> dict:
         _log("No web search backend available, skipping resolve")
         return empty
 
-    from_date, to_date = dates.get_date_range(30)
+    from_date, to_date = dates.get_date_range(1)
     date_range = (from_date, to_date)
     now = datetime.now(timezone.utc)
     current_month = now.strftime("%B")

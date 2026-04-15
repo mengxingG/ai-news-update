@@ -663,7 +663,7 @@ Only show lines for platforms where something was resolved. Skip empty lines. Th
     {
       "label": "primary",
       "search_query": "kanye west",
-      "ranking_query": "What notable events involving Kanye West happened in the last 30 days?",
+      "ranking_query": "What notable events involving Kanye West happened in the last 24 hours?",
       "sources": ["reddit", "x", "hackernews", "youtube", "tiktok", "instagram"],
       "weight": 1.0
     },
@@ -692,7 +692,7 @@ Only show lines for platforms where something was resolved. Skip empty lines. Th
 - `ranking_query` should read like a natural language question
 - **DISAMBIGUATION:** If the topic name is a common word or has known non-product meanings (e.g., "Loom" = also a weaving tool, "Tella" = also a soccer player), add a qualifying term to your search_query to disambiguate. Examples: "tella screen recording" not just "tella", "loom video messaging" not just "loom". The product category prevents matching unrelated content.
 - **For comparison queries**, each subquery should include the product category: "tella screen recorder review" not just "tella review", "loom video tool pricing" not just "loom pricing".
-- NEVER include temporal phrases in search_query: no "last 30 days", "recent", month names, year numbers
+- NEVER include temporal phrases in search_query: no "last 24 hours", "recent", month names, year numbers
 - NEVER include meta-research phrases: no "news", "updates", "public appearances"
 - Preserve exact proper nouns and entity strings from the topic
 - For comparison ("X vs Y"): create per-entity subqueries at weight 0.8 + a head-to-head subquery at weight 1.0

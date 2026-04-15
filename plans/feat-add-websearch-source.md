@@ -88,7 +88,7 @@ score = 0.45*relevance + 0.25*recency + 0.30*engagement - penalties
 
 WEBSEARCH_PROMPT = """Search the web for content about: {topic}
 
-CRITICAL: Only include results from the last 30 days (after {from_date}).
+CRITICAL: Only include results from the last 24 hours (after {from_date}).
 
 Find {min_items}-{max_items} high-quality, relevant web pages. Prefer:
 - Blog posts, tutorials, documentation
@@ -282,7 +282,7 @@ def get_available_sources(config: dict) -> str:
 - [x] `--include-web` flag adds WebSearch to Reddit/X searches
 - [x] WebSearch items have lower average scores than Reddit/X items with similar relevance
 - [x] WebSearch results exclude Reddit/X URLs (handled separately)
-- [x] Date filtering uses natural language ("last 30 days") in prompt
+- [x] Date filtering uses natural language ("last 24 hours") in prompt
 - [x] Output clearly labels source type: `[WEB]`, `[Reddit]`, `[X]`
 
 ### Non-Functional Requirements

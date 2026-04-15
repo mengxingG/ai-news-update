@@ -9,7 +9,7 @@ The `/last30days` skill is returning content older than 30 days, violating its c
 
 ## Problem Statement
 
-The skill's name is "last30days" - users expect ONLY content from the last 30 days. Currently:
+The skill's name is "last30days" - users expect ONLY content from the last 24 hours. Currently:
 
 1. **Reddit search prompt** says "prefer recent threads, but include older relevant ones if recent ones are scarce" - this is too permissive
 2. **X search prompt** explicitly includes `from_date` and `to_date` - this is why it works
@@ -20,7 +20,7 @@ The skill's name is "last30days" - users expect ONLY content from the last 30 da
 
 ### Strategy: "Hard Filter, Not Soft Penalty"
 
-Instead of penalizing old content, **exclude it entirely**. If it's not from the last 30 days, it shouldn't appear.
+Instead of penalizing old content, **exclude it entirely**. If it's not from the last 24 hours, it shouldn't appear.
 
 | Source | Current Behavior | New Behavior |
 |--------|------------------|--------------|
@@ -44,7 +44,7 @@ New prompt:
 ```
 Find {min_items}-{max_items} relevant Reddit discussion threads from {from_date} to {to_date}.
 
-CRITICAL: Only include threads posted within the last 30 days (after {from_date}).
+CRITICAL: Only include threads posted within the last 24 hours (after {from_date}).
 Do NOT include threads older than {from_date}, even if they seem relevant.
 If you cannot find enough recent threads, return fewer results rather than older ones.
 ```
@@ -237,7 +237,7 @@ def score_websearch_items(items):
 
 ### Phase 4: Update Statistics Display
 
-Only count Reddit and X in "from the last 30 days" claim. WebSearch should be clearly labeled as supplementary.
+Only count Reddit and X in "from the last 24 hours" claim. WebSearch should be clearly labeled as supplementary.
 
 ## Acceptance Criteria
 

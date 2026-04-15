@@ -13,7 +13,7 @@ user-invocable: true
 
 # last30days v3.0.0
 
-Use `last30days` when the user wants recent, cross-source evidence from the last 30 days.
+Use `last30days` when the user wants recent, cross-source evidence from the last 24 hours.
 
 The runtime is a single v3 pipeline:
 

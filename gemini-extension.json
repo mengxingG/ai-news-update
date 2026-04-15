@@ -1,7 +1,7 @@
 {
   "name": "last30days-skill",
   "version": "3.0.0",
-  "description": "Research a topic from the last 30 days across Reddit, X, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web.",
+  "description": "Research a topic from the last 24 hours across Reddit, X, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web.",
   "settings": [
     {
       "name": "Extension Directory",

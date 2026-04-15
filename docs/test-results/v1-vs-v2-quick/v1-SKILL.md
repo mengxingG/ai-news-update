@@ -1,6 +1,6 @@
 ---
 name: last30days
-description: Research a topic from the last 30 days on Reddit + X + Web, become an expert, and write copy-paste-ready prompts for the user's target tool.
+description: Research a topic from the last 24 hours on Reddit + X + Web, become an expert, and write copy-paste-ready prompts for the user's target tool.
 argument-hint: "[topic] for [tool]" or "[topic]"
 allowed-tools: Bash, Read, Write, AskUserQuestion, WebSearch
 ---

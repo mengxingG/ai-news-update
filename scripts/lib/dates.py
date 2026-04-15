@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 
-def get_date_range(days: int = 30) -> Tuple[str, str]:
+def get_date_range(days: int = 1) -> Tuple[str, str]:
     """Get the date range for the last N days.
 
     Returns:

@@ -1,6 +1,6 @@
 The AI world reinvents itself every month. This skill keeps you current.
 
-`/last30days` researches your topic across **Reddit, X, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web** from the last 30 days, finds what the community is actually upvoting, sharing, betting on, and saying on camera, and writes you a grounded narrative with real citations.
+`/last30days` researches your topic across **Reddit, X, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web** from the last 24 hours, finds what the community is actually upvoting, sharing, betting on, and saying on camera, and writes you a grounded narrative with real citations.
 
 ## v3 Community
 

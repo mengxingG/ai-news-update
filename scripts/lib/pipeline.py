@@ -178,7 +178,7 @@ def run(
     tiktok_hashtags: list[str] | None = None,
     tiktok_creators: list[str] | None = None,
     ig_creators: list[str] | None = None,
-    lookback_days: int = 30,
+    lookback_days: int = 1,
     github_user: str | None = None,
     github_repos: list[str] | None = None,
 ) -> schema.Report:
@@ -763,7 +763,7 @@ def _retry_thin_sources(
     retry_subquery = schema.SubQuery(
         label="retry",
         search_query=core,
-        ranking_query=f"What recent evidence from the last 30 days matters for {core}?",
+        ranking_query=f"What recent evidence from the last 24 hours matters for {core}?",
         sources=thin_sources,
         weight=0.3,
     )

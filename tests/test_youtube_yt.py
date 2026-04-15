@@ -306,7 +306,7 @@ class TestExpandYouTubeQueries(unittest.TestCase):
         self.assertGreaterEqual(len(queries), 1)
 
     def test_temporal_words_stripped_from_core(self):
-        queries = youtube_yt.expand_youtube_queries("kanye west last 30 days", "default")
+        queries = youtube_yt.expand_youtube_queries("kanye west last 24 hours", "default")
         core = queries[0].lower()
         self.assertNotIn("last", core)
         self.assertNotIn("days", core)
