@@ -75,8 +75,7 @@ export DEEPSEEK_API_KEY=sk-xxx
 export LLM_PROVIDER=deepseek
 
 # 4. 启动
-python -m uvicorn server:app --host 127.0.0.1 --port 8000
-
+python scripts/last30days.py "OpenAI and Google AI updates" --emit=json
 # 5. 测试
 curl "http://127.0.0.1:8000/api/news?topic=AI&days=1"
 ```
