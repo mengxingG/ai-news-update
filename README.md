@@ -8,18 +8,14 @@
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-latest-009485)](https://fastapi.tiangolo.com)
 
-## 项目定位
+## AI News Radar · 每日 AI 资讯
 
-本项目是 AI News Radar **双引擎架构**中的 **Engine A（社区共识引擎）**：
+> **双引擎采集 + 三视图阅读 + 飞书触达。** 精选入库由 [ai-news-update](https://github.com/mengxingG/ai-news-update) Engine A（HN / Polymarket / YouTube）经 `fetch-news` 写入 Notion；AI 日报 Tab 仍直连 AI HOT 官方 API；飞书 6 菜单与 Job Engine **共用** `feishu_gateway.py` 门卫（资讯最高优先级，与背调/爬虫隔离）。
 
-| | Engine A（本项目） | Engine B（Coze 工作流） |
-|---|---|---|
-| 技术栈 | Python + FastAPI + Render | Coze 可视化工作流 |
-| 数据源 | Hacker News / Polymarket / YouTube 字幕 | X 博主 / 中文媒体 / RSS |
-| 触发时间 | 每天 09:30（Make.com 或 `my-ai-portfolio` 的 `fetch-news`） | 每天 10:42 |
-| 写入 Notion | `lib/cron-fetch-news.ts` 调用本仓库 `/api/news` | Make.com（可选） |
-
-两个引擎写入**同一个 Notion 资讯库**，由 `my-ai-portfolio` 统一渲染为 Web 三视图与飞书卡片。
+### 产品截图
+![AI News Radar 控制台](./images/news-dashboard.png) 
+![飞书卡片示例 1](./images/news-feishu.png) 
+![飞书卡片示例 2](./images/news-feishu2.png)
 
 ### 与 my-ai-portfolio 的分工
 
@@ -31,12 +27,6 @@
 | **飞书触达** | `my-ai-portfolio` + `job_engine` | 6 条菜单暗号 → Python 门卫 → Node `:3001` 卡片引擎 |
 
 > **边界说明**：本仓库只负责 **精选入库** 的社区共识信号。Web「AI 日报」Tab 与飞书 6 菜单仍读 **AI HOT 官方 API**，不经本引擎二次拼装。
-
-## 产品截图
-
-| Web 资讯雷达 `/ai-news` | 飞书卡片 · 日报 | 飞书卡片 · 精选 |
-|:---:|:---:|:---:|
-| ![AI News Radar 控制台](./images/news-dashboard.png) | ![飞书卡片示例 1](./images/news-feishu.png) | ![飞书卡片示例 2](./images/news-feishu2.png) |
 
 线上体验：https://www.mengxing-ai.it.com/ai-news
 
@@ -199,23 +189,9 @@ DEEPSEEK_API_KEY=sk-xxx
 }
 ```
 
-## 关键设计决策
-
-### 为什么从 Gemini 切换到 DeepSeek？
-
-Google API 代理访问稳定性不佳。DeepSeek 提供 OpenAI 兼容接口 + 原生中文优势 + 极低成本。
-
-### 为什么不用 X 官方 API？
-
-X 数据抓取改由 Coze Engine B 通过 GoogleWebSearch 覆盖。
-
-### 为什么要限制每源 60 秒超时？
-
-YouTube 的 yt-dlp 偶尔会卡死 fork 子进程。60 秒硬超时确保单源故障不阻塞主管线。
-
 ## 致谢
 
-- [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) — 原始项目
+- [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills.git) — 原始项目
 - [my-ai-portfolio](https://github.com/mengxingG/my-ai-portfolio) — Web / Notion / 飞书集成
 - [Anthropic Claude Code](https://claude.ai/code) · [Cursor](https://cursor.sh)
 
