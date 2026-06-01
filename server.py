@@ -191,7 +191,7 @@ def _author_for(candidate: schema.Candidate) -> str:
     return "Unknown"
 
 
-def _candidate_to_row(candidate: schema.Candidate) -> dict[str, str]:
+def _candidate_to_row(candidate: schema.Candidate, *, days: int) -> dict[str, str]:
     src_key = (candidate.source or "").strip()
     if not src_key:
         srcs = schema.candidate_sources(candidate)
@@ -204,6 +204,7 @@ def _candidate_to_row(candidate: schema.Candidate) -> dict[str, str]:
         "OriginalText": _original_text(candidate),
         "URL": (candidate.url or "").strip(),
         "Date": _format_date_yyyy_mm_dd(schema.candidate_best_published_at(candidate)),
+        "TimeRange": f"{days}d",
     }
 
 
@@ -423,7 +424,7 @@ def run_news_for_topic(topic: str, *, days: int) -> list[dict[str, str]]:
             continue
         if not _candidate_published_in_window(cand, from_d, to_d):
             continue
-        out.append(_candidate_to_row(cand))
+        out.append(_candidate_to_row(cand, days=days))
         if len(out) >= 15:
             break
 
@@ -462,7 +463,11 @@ def api_news(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "llm_provider": LLM_PROVIDER,
+        "sources": ",".join(NEWS_SOURCES),
+    }
 
 
 if __name__ == "__main__":
